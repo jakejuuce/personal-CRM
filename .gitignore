@@ -1,0 +1,29 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# env / secrets — NEVER commit
+.env
+.env*.local
+.env.local
+
+# REAL DATA — never commit to a public repo (founder/VC names, private notes)
+/data/
+/supabase/seed/crm-seed/
+*-clean.json
+*-clean.csv
+canonical-taxonomy.json
+
+# misc
+.DS_Store
+*.tsbuildinfo
+/coverage
