@@ -95,6 +95,8 @@ export interface MatchCandidate {
   via_wildcard: boolean;
   /** true when this is a relaxed near-miss (stage dropped), not a hard match. */
   near_miss: boolean;
+  /** true when you've ALREADY introduced this founder to this VC (don't re-suggest). */
+  already_introd?: boolean;
 }
 
 export interface Settings {

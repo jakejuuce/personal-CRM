@@ -14,6 +14,7 @@ export function MatchExplorer({ founders }: { founders: Founder[] }) {
   const [error, setError] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchCandidate[]>([]);
   const [nearMiss, setNearMiss] = useState<MatchCandidate[]>([]);
+  const [alreadyIntrod, setAlreadyIntrod] = useState<MatchCandidate[]>([]);
   const [reason, setReason] = useState<string | null>(null);
 
   async function run(founderId: string) {
@@ -22,6 +23,7 @@ export function MatchExplorer({ founders }: { founders: Founder[] }) {
     setError(null);
     setMatches([]);
     setNearMiss([]);
+    setAlreadyIntrod([]);
     setReason(null);
     try {
       const res = await fetch(`/api/matches?founderId=${founderId}`);
@@ -33,6 +35,7 @@ export function MatchExplorer({ founders }: { founders: Founder[] }) {
       }
       setMatches(data.matches ?? []);
       setNearMiss(data.nearMiss ?? []);
+      setAlreadyIntrod(data.alreadyIntrod ?? []);
       setReason(data.reason ?? null);
     } catch {
       setError("network error");
@@ -80,6 +83,31 @@ export function MatchExplorer({ founders }: { founders: Founder[] }) {
           <h3 style={{ marginTop: 24, color: "#888" }}>Near-misses (stage relaxed)</h3>
           {nearMiss.map((m) => (
             <MatchCard key={m.vc_id} m={m} founderId={selected} />
+          ))}
+        </>
+      )}
+
+      {alreadyIntrod.length > 0 && (
+        <>
+          <h3 style={{ marginTop: 24, color: "#888" }}>
+            Already introduced ({alreadyIntrod.length})
+          </h3>
+          {alreadyIntrod.map((m) => (
+            <div
+              key={m.vc_id}
+              style={{
+                border: "1px solid #eee",
+                borderRadius: 8,
+                padding: "10px 14px",
+                marginTop: 8,
+                background: "#f7f7f7",
+                color: "#666",
+                fontSize: 14,
+              }}
+            >
+              {m.vc_name}
+              {m.vc_firm ? ` · ${m.vc_firm}` : ""} — intro already made
+            </div>
           ))}
         </>
       )}

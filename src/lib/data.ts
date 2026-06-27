@@ -50,6 +50,17 @@ export async function loadFounders(): Promise<Person[]> {
   return data as Person[];
 }
 
+/** VC ids this founder has ALREADY been introduced to (status intro_sent) — so we don't re-suggest. */
+export async function loadIntroducedVcIds(founderId: string): Promise<Set<string>> {
+  const { data, error } = await supabaseAdmin()
+    .from("matches")
+    .select("vc_id")
+    .eq("founder_id", founderId)
+    .eq("status", "intro_sent");
+  if (error) throw error;
+  return new Set((data as { vc_id: string }[]).map((r) => r.vc_id));
+}
+
 /** The synonym fast-path table (raw key → canonical tags), loaded for the tag-writer. */
 export async function loadVerticalSynonyms(): Promise<Record<string, string[]>> {
   const { data, error } = await supabaseAdmin().from("vertical_synonyms").select("key, tags");

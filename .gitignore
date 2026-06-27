@@ -27,3 +27,4 @@ canonical-taxonomy.json
 .DS_Store
 *.tsbuildinfo
 /coverage
+.vercel

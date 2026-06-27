@@ -4,7 +4,7 @@
 // must be able to tell "no matches" from "the matcher broke."
 
 import { NextResponse } from "next/server";
-import { loadFounder, loadAllVcs } from "@/lib/data";
+import { loadFounder, loadAllVcs, loadIntroducedVcIds } from "@/lib/data";
 import { filterVcsForFounder, rankCandidates } from "@/lib/matcher";
 import { LLMError } from "@/lib/llm";
 
@@ -28,9 +28,15 @@ export async function GET(req: Request) {
     }
 
     const ranked = await rankCandidates(founder, hits);
+
+    // Flag VCs this founder was already introduced to (don't re-suggest as fresh).
+    const introd = await loadIntroducedVcIds(founderId);
+    for (const m of ranked) m.already_introd = introd.has(m.vc_id);
+
     return NextResponse.json({
-      matches: ranked.filter((m) => !m.near_miss),
-      nearMiss: ranked.filter((m) => m.near_miss),
+      matches: ranked.filter((m) => !m.near_miss && !m.already_introd),
+      nearMiss: ranked.filter((m) => m.near_miss && !m.already_introd),
+      alreadyIntrod: ranked.filter((m) => m.already_introd),
       reason: null,
     });
   } catch (err) {
