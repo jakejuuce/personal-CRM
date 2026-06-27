@@ -9,7 +9,7 @@
 //   - logs full context (purpose, attempt, token usage, truncated payload) for debuggability
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { ZodSchema } from "zod";
+import type { ZodType } from "zod";
 
 export type LLMPurpose = "normalize" | "match" | "draft";
 
@@ -70,7 +70,8 @@ interface CallArgs<T> {
   purpose: LLMPurpose;
   system: string;
   user: string;
-  schema: ZodSchema<T>;
+  // ZodType<T, any, any> so schemas with a transform/preprocess (input != output) still fit.
+  schema: ZodType<T, any, any>;
 }
 
 /**

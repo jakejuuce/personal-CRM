@@ -139,15 +139,19 @@ export function filterVcsForFounder(
 import { callLLMJson } from "./llm";
 import { z } from "zod";
 
-const RerankSchema = z.object({
-  ranked: z.array(
-    z.object({
-      vc_id: z.string(),
-      score: z.number().min(0).max(100),
-      why: z.string(),
-    }),
-  ),
-});
+// Tolerate either {ranked:[...]} or a bare [...] (models sometimes return the array directly).
+const RerankSchema = z.preprocess(
+  (v) => (Array.isArray(v) ? { ranked: v } : v),
+  z.object({
+    ranked: z.array(
+      z.object({
+        vc_id: z.string(),
+        score: z.number().min(0).max(100),
+        why: z.string(),
+      }),
+    ),
+  }),
+);
 
 /**
  * Re-rank filtered candidates by fit, emitting a one-line "why" each.
@@ -189,10 +193,10 @@ export async function rankCandidates(
     "You rank VCs for a founder who is raising. The hard constraints (stage, vertical, " +
     "exclusions, amount) already passed — judge FIT and write one concrete sentence on why " +
     "each VC is a good intro. Weight the founder's caliber (1-5; null = unknown, treat as " +
-    "neutral) toward higher scores, but never invent quality you weren't given. " +
-    "Score 0-100. Return strict JSON.";
+    "neutral) toward higher scores, but never invent quality you weren't given. Score 0-100. " +
+    'Return strict JSON of exactly this shape: {"ranked":[{"vc_id":"<id>","score":<0-100>,"why":"<one sentence>"}]}.';
 
-  const result = await callLLMJson({
+  const result = await callLLMJson<{ ranked: { vc_id: string; score: number; why: string }[] }>({
     purpose: "match",
     system,
     user: JSON.stringify(payload),
