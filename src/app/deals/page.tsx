@@ -16,6 +16,7 @@ export default async function DealsPage() {
       description: d.description,
       stages: d.stages,
       verticals: d.verticals,
+      deckFilename: d.deck_filename,
     }));
   } catch (e) {
     error = e instanceof Error ? e.message : "could not load deals";

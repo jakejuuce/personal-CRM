@@ -11,6 +11,7 @@ export interface DealRow {
   description: string | null;
   stages: string[];
   verticals: string[];
+  deckFilename: string | null;
 }
 
 const input = { padding: 8, border: "1px solid #ccc", borderRadius: 6, fontSize: 14, width: "100%" } as const;
@@ -41,36 +42,54 @@ function AddDeal({ onAdded }: { onAdded: (d: DealRow) => void }) {
   const [website, setWebsite] = useState("");
   const [description, setDescription] = useState("");
   const [deck, setDeck] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setErr(null);
-    const res = await fetch("/api/deals", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, kind, website: website || null, description: description || null, deck_text: deck || null }),
-    });
+    const fd = new FormData();
+    fd.set("name", name); fd.set("kind", kind);
+    if (website) fd.set("website", website);
+    if (description) fd.set("description", description);
+    if (deck) fd.set("deck_text", deck);
+    if (file) fd.set("deck", file);
+    const res = await fetch("/api/deals", { method: "POST", body: fd });
     const data = await res.json();
     setBusy(false);
     if (!res.ok) { setErr(data.error ?? "failed"); return; }
-    onAdded({ id: data.id, name, kind, website: website || null, description: description || null, stages: data.stages ?? [], verticals: data.verticals ?? [] });
+    onAdded({
+      id: data.id, name, kind, website: website || null, description: description || null,
+      stages: data.stages ?? [], verticals: data.verticals ?? [], deckFilename: data.deckFilename ?? null,
+    });
   }
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8, background: "#fff", padding: 16, borderRadius: 8, border: "1px solid #e3e3e3", marginBottom: 16 }}>
+    <form onSubmit={submit} className="card" style={{ display: "flex", flexDirection: "column", gap: 8, padding: 16, marginBottom: 16 }}>
       <div style={{ display: "flex", gap: 8 }}>
-        <input required placeholder="Deal / company name" value={name} onChange={(e) => setName(e.target.value)} style={input} />
-        <select value={kind} onChange={(e) => setKind(e.target.value)} style={{ ...input, width: 150 }}>
+        <input required placeholder="Deal / company name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
+        <select value={kind} onChange={(e) => setKind(e.target.value)} className="input" style={{ width: 150 }}>
           <option value="referral">Referral</option><option value="affiliate">Affiliate</option><option value="other">Other</option>
         </select>
       </div>
-      <input placeholder="Website" value={website} onChange={(e) => setWebsite(e.target.value)} style={input} />
-      <textarea placeholder="Description / blurb" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={input} />
-      <textarea placeholder="Deck text (paste the pitch deck content)" value={deck} onChange={(e) => setDeck(e.target.value)} rows={4} style={input} />
-      <button type="submit" disabled={busy} style={btn}>{busy ? "Analyzing…" : "Save deal (extracts stage + vertical)"}</button>
-      {err && <p style={{ color: "#b00" }}>{err}</p>}
+      <input placeholder="Website" value={website} onChange={(e) => setWebsite(e.target.value)} className="input" />
+      <textarea placeholder="Description / blurb (optional)" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="input" />
+
+      <label className="deck-drop">
+        <input type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} style={{ display: "none" }} />
+        <span className="muted">{file ? `📎 ${file.name}` : "Upload a pitch deck (PDF or image) — read by vision"}</span>
+      </label>
+
+      <details>
+        <summary className="muted" style={{ fontSize: 13, cursor: "pointer" }}>or paste deck text instead</summary>
+        <textarea placeholder="Deck text" value={deck} onChange={(e) => setDeck(e.target.value)} rows={4} className="input" style={{ marginTop: 6 }} />
+      </details>
+
+      <button type="submit" disabled={busy} className="btn btn-primary" style={{ justifyContent: "center" }}>
+        {busy ? (file ? "Reading deck…" : "Analyzing…") : "Save deal & find fits"}
+      </button>
+      {err && <p style={{ color: "var(--danger)" }}>{err}</p>}
     </form>
   );
 }
@@ -101,7 +120,10 @@ function DealCard({ deal, autoRun }: { deal: DealRow; autoRun?: boolean }) {
         <strong>{deal.name}</strong>
         <span className="chip">{deal.kind}</span>
       </div>
-      {deal.website && <a href={deal.website} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>{deal.website}</a>}
+      <div style={{ display: "flex", gap: 14, fontSize: 13, marginTop: 2 }}>
+        {deal.website && <a href={deal.website} target="_blank" rel="noreferrer">{deal.website}</a>}
+        {deal.deckFilename && <a href={`/api/deals/${deal.id}/deck`} target="_blank" rel="noreferrer">📎 {deal.deckFilename}</a>}
+      </div>
       <p className="muted" style={{ fontSize: 13, margin: "6px 0" }}>
         {deal.verticals.length ? `verticals: ${deal.verticals.join(", ")}` : "no verticals extracted"}
         {deal.stages.length ? ` · stages: ${deal.stages.join(", ")}` : ""}

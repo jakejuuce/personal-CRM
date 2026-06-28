@@ -129,6 +129,11 @@ a:hover { text-decoration: underline; }
 .suggest-row { display: grid; grid-template-columns: 46px 1fr; gap: 14px; align-items: start; padding: 8px 0; }
 .suggest-row + .suggest-row { border-top: 1px solid var(--border); }
 .suggest-row .score-anchor { font-size: 24px; }
+
+/* deck upload zone */
+.deck-drop { display: block; border: 1.5px dashed var(--border-strong); border-radius: var(--radius-sm);
+  padding: 14px; text-align: center; cursor: pointer; background: var(--surface-2); transition: border-color .12s; }
+.deck-drop:hover { border-color: var(--accent); }
 .draft-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 10px; }
 .draft-box { white-space: pre-wrap; background: var(--surface-2); border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 4px 0 10px; line-height: 1.55; }
 .draft-box-go { background: var(--accent-soft); border-color: transparent; }

@@ -165,6 +165,22 @@ export async function createDeal(
   return (data as { id: string }).id;
 }
 
+/** Upload a deck file to the private "decks" bucket; returns the storage object path. */
+export async function uploadDeck(bytes: Uint8Array, filename: string, contentType: string): Promise<string> {
+  const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabaseAdmin().storage.from("decks").upload(path, bytes, { contentType, upsert: false });
+  if (error) throw error;
+  return path;
+}
+
+/** Short-lived signed URL to view a stored deck. */
+export async function signedDeckUrl(path: string, expiresSec = 600): Promise<string | null> {
+  const { data, error } = await supabaseAdmin().storage.from("decks").createSignedUrl(path, expiresSec);
+  if (error) return null;
+  return data.signedUrl;
+}
+
 /** VC ids this founder has ALREADY been introduced to (status intro_sent) — so we don't re-suggest. */
 export async function loadIntroducedVcIds(founderId: string): Promise<Set<string>> {
   const { data, error } = await supabaseAdmin()

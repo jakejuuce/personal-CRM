@@ -69,7 +69,8 @@ export function extractJson(text: string): unknown {
 interface CallArgs<T> {
   purpose: LLMPurpose;
   system: string;
-  user: string;
+  // string for text calls, or content blocks (e.g. a document/image + a text prompt) for vision.
+  user: string | Anthropic.ContentBlockParam[];
   // ZodType<T, any, any> so schemas with a transform/preprocess (input != output) still fit.
   schema: ZodType<T, any, any>;
 }
@@ -112,7 +113,7 @@ export async function callLLMJson<T>({ purpose, system, user, schema }: CallArgs
       log(purpose, attempt, "error", {
         model,
         error: err instanceof Error ? err.message : String(err),
-        user_preview: user.slice(0, 200),
+        user_preview: typeof user === "string" ? user.slice(0, 200) : "[content blocks]",
       });
     }
   }

@@ -143,6 +143,8 @@ export interface Deal {
   description: string | null;
   website: string | null;
   deck_text: string | null;
+  deck_url: string | null;        // Storage object path (private "decks" bucket)
+  deck_filename: string | null;
   stages: CanonicalStage[];
   verticals: CanonicalVertical[];
   amount_low: number | null;

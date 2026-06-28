@@ -2,6 +2,7 @@
 // "Find fits" reuses the matcher — a deal is treated like a founder who is raising, matched
 // against your VCs (stage/vertical/exclusions/amount), then LLM-ranked for fit.
 
+import type Anthropic from "@anthropic-ai/sdk";
 import { callLLMJson } from "./llm";
 import { filterVcsForFounder, rankCandidates } from "./matcher";
 import type { Deal, FounderForMatch, VcForMatch, MatchCandidate } from "./types";
@@ -15,14 +16,28 @@ const ExtractSchema = z.object({
 });
 export type DealExtract = z.infer<typeof ExtractSchema>;
 
+const EXTRACT_SYSTEM =
+  "From a company/deal (description or pitch deck), extract: funding stage phrases, sector/vertical " +
+  "phrases (verticals_raw, raw text - they get normalized downstream), and any raise amount " +
+  "(amount_low/high in raw dollars, null if absent). Return strict JSON " +
+  '{"stages":[],"verticals_raw":[],"amount_low":null,"amount_high":null}.';
+
 /** Pull stage/vertical/amount from a deal's free text (description + deck + website blurb). */
 export async function extractDealAttributes(text: string): Promise<DealExtract> {
-  const system =
-    "From a company/deal description, extract: funding stage phrases, sector/vertical phrases " +
-    "(verticals_raw, raw text - they get normalized downstream), and any raise amount " +
-    "(amount_low/high in raw dollars, null if absent). Return strict JSON " +
-    '{"stages":[],"verticals_raw":[],"amount_low":null,"amount_high":null}.';
-  return callLLMJson({ purpose: "match", system, user: text.slice(0, 6000), schema: ExtractSchema });
+  return callLLMJson({ purpose: "match", system: EXTRACT_SYSTEM, user: text.slice(0, 6000), schema: ExtractSchema });
+}
+
+/** Pull the same attributes straight from an uploaded deck FILE using vision (PDF or image). */
+export async function extractDealFromDeck(base64: string, mediaType: string): Promise<DealExtract> {
+  const fileBlock =
+    mediaType === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+      : { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } };
+  const blocks = [
+    fileBlock,
+    { type: "text", text: "Read this pitch deck and extract the deal attributes as instructed." },
+  ] as Anthropic.ContentBlockParam[];
+  return callLLMJson({ purpose: "match", system: EXTRACT_SYSTEM, user: blocks, schema: ExtractSchema });
 }
 
 /** Adapt a deal into the FounderForMatch shape the matcher expects. */
