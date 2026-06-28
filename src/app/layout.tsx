@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import "./globals.css";
+
+const ui = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-ui", weight: ["400", "500", "600", "700"] });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["500", "600"] });
 
 export const metadata: Metadata = {
   title: "Personal CRM",
@@ -8,16 +13,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body
-        style={{
-          fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
-          margin: 0,
-          background: "#fafafa",
-          color: "#1a1a1a",
-        }}
-      >
-        <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 20px" }}>{children}</div>
+    <html lang="en" className={`${ui.variable} ${mono.variable}`}>
+      <body>
+        <div className="shell">{children}</div>
       </body>
     </html>
   );

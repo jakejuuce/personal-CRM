@@ -1,17 +1,28 @@
+"use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const links = [
+  { href: "/", label: "Match" },
+  { href: "/contacts", label: "Contacts" },
+  { href: "/deals", label: "Deals" },
+];
 
 export function Nav() {
+  const path = usePathname();
   return (
-    <nav style={{ display: "flex", gap: 18, marginBottom: 24, fontSize: 15 }}>
-      <Link href="/" style={{ color: "#1a1a1a", textDecoration: "none", fontWeight: 600 }}>
-        Match
-      </Link>
-      <Link href="/contacts" style={{ color: "#555", textDecoration: "none" }}>
-        Contacts
-      </Link>
-      <Link href="/deals" style={{ color: "#555", textDecoration: "none" }}>
-        Deals
-      </Link>
+    <nav className="nav">
+      <span className="nav-brand">
+        relay<span className="dot">.</span>
+      </span>
+      {links.map((l) => {
+        const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
+        return (
+          <Link key={l.href} href={l.href} className={active ? "active" : ""}>
+            {l.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

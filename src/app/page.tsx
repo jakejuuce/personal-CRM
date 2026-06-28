@@ -21,14 +21,10 @@ export default async function Home() {
   return (
     <main>
       <Nav />
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Who should I connect them with?</h1>
-      <p style={{ color: "#666", marginTop: 0 }}>
-        Pick a founder. The matcher finds VCs whose stage + vertical fit, honoring exclusions.
-      </p>
+      <h1>Who should I connect them with?</h1>
+      <p className="sub">Pick a founder; see the VCs to introduce them to, ranked by fit.</p>
       {error ? (
-        <p style={{ color: "#b00" }}>
-          {error}. Run the migration + seed, and set Supabase env vars.
-        </p>
+        <p style={{ color: "var(--danger)" }}>{error}. Run the migration + seed, and set Supabase env vars.</p>
       ) : (
         <MatchExplorer founders={founders} />
       )}
