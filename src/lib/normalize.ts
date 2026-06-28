@@ -8,8 +8,23 @@
 // misclassification is catchable (a silent false-negative is the worst failure here).
 
 import { callLLMJson } from "./llm";
-import { CANONICAL_VERTICALS } from "./taxonomy";
+import { CANONICAL_VERTICALS, SEED_STAGE_SYNONYMS } from "./taxonomy";
 import { z } from "zod";
+
+/** PURE stage normalization via the seed synonym table; unknown stages pass through lowercased.
+ *  Strips a trailing "stage"/"-stage" so "seed-stage" → "seed", "series a stage" → "series a". */
+export function normalizeStages(raw: string[]): string[] {
+  const out = new Set<string>();
+  for (const r of raw) {
+    const key = r.trim().toLowerCase();
+    const stripped = key.replace(/[\s-]*stage$/, "").trim();
+    const hit = SEED_STAGE_SYNONYMS[key] ?? SEED_STAGE_SYNONYMS[stripped];
+    if (hit) hit.forEach((s) => out.add(s));
+    else if (stripped) out.add(stripped);
+    else if (key) out.add(key);
+  }
+  return [...out];
+}
 
 export interface NormalizeResult {
   /** canonical tags (a SET — "B2B AI SaaS" → ["ai","b2b-saas"]) */

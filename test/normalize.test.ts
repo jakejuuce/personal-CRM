@@ -1,6 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { synonymLookup, normKey } from "@/lib/normalize";
+import { synonymLookup, normKey, normalizeStages } from "@/lib/normalize";
 import { SEED_VERTICAL_SYNONYMS } from "@/lib/taxonomy";
+
+describe("normalizeStages", () => {
+  it("maps known stages", () => {
+    expect(normalizeStages(["Series B/C"])).toEqual(["series-b", "series-c"]);
+  });
+  it("strips a 'stage' suffix so seed-stage → seed", () => {
+    expect(normalizeStages(["seed-stage"])).toEqual(["seed"]);
+    expect(normalizeStages(["Seed Stage"])).toEqual(["seed"]);
+  });
+  it("passes unknown stages through lowercased", () => {
+    expect(normalizeStages(["Growth"])).toEqual(["growth"]);
+  });
+});
 
 describe("normKey", () => {
   it("lowercases, trims, collapses whitespace", () => {

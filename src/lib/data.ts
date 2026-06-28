@@ -6,7 +6,10 @@ import type {
   VcForMatch,
   Person,
   Intent,
+  Relationship,
   MatchCandidate,
+  ContactFull,
+  Deal,
 } from "./types";
 
 interface PersonRow extends Person {
@@ -48,6 +51,118 @@ export async function loadFounders(): Promise<Person[]> {
     .order("name");
   if (error) throw error;
   return data as Person[];
+}
+
+// --- contacts directory + CRUD ----------------------------------------------
+
+export async function loadAllContacts(): Promise<ContactFull[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("people")
+    .select("*, intent(*), relationship(*)")
+    .order("name");
+  if (error) throw error;
+  return (data as (Person & { intent: Intent[] | null; relationship: Relationship[] | null })[]).map(
+    (row) => {
+      const { intent, relationship, ...person } = row;
+      return {
+        person: person as Person,
+        intent: intent && intent.length ? intent[0] : null,
+        relationship: relationship && relationship.length ? relationship[0] : null,
+      };
+    },
+  );
+}
+
+export interface ContactInput {
+  type: "founder" | "vc" | "other";
+  name: string;
+  company?: string | null;
+  caliber?: number | null;
+  links?: string | null; // LinkedIn / socials
+  notes?: string | null;
+  intent?: {
+    kind: "raising" | "investing";
+    stages?: string[];
+    verticals?: string[];
+    exclusions?: string[];
+    wildcard?: boolean;
+    amount_low?: number | null;
+    amount_high?: number | null;
+    thesis_text?: string | null;
+  } | null;
+  relationship?: { tie_strength?: number | null; last_touch?: string | null } | null;
+}
+
+export async function createContact(input: ContactInput): Promise<string> {
+  const db = supabaseAdmin();
+  const { data, error } = await db
+    .from("people")
+    .insert({
+      type: input.type,
+      name: input.name,
+      company: input.company ?? null,
+      caliber: input.caliber ?? null,
+      links: input.links ?? null,
+      notes: input.notes ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  const id = (data as { id: string }).id;
+
+  if (input.intent) {
+    await db.from("intent").insert({
+      person_id: id,
+      kind: input.intent.kind,
+      stages: input.intent.stages ?? [],
+      verticals: input.intent.verticals ?? [],
+      exclusions: input.intent.exclusions ?? [],
+      wildcard: input.intent.wildcard ?? false,
+      amount_low: input.intent.amount_low ?? null,
+      amount_high: input.intent.amount_high ?? null,
+      thesis_text: input.intent.thesis_text ?? null,
+      as_of: input.intent.kind === "raising" ? new Date().toISOString().slice(0, 10) : null,
+    });
+  }
+  if (input.relationship) {
+    await db.from("relationship").insert({
+      person_id: id,
+      tie_strength: input.relationship.tie_strength ?? null,
+      last_touch: input.relationship.last_touch ?? null,
+    });
+  }
+  return id;
+}
+
+/** Patch person-level fields (name, company, caliber, links/LinkedIn, notes). */
+export async function updateContact(
+  id: string,
+  patch: Partial<Pick<Person, "name" | "company" | "caliber" | "links" | "notes">>,
+): Promise<void> {
+  const { error } = await supabaseAdmin().from("people").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+// --- deals -------------------------------------------------------------------
+
+export async function loadDeals(): Promise<Deal[]> {
+  const { data, error } = await supabaseAdmin().from("deals").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as Deal[];
+}
+
+export async function getDeal(id: string): Promise<Deal | null> {
+  const { data, error } = await supabaseAdmin().from("deals").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return (data as Deal) ?? null;
+}
+
+export async function createDeal(
+  d: Omit<Deal, "id" | "created_at">,
+): Promise<string> {
+  const { data, error } = await supabaseAdmin().from("deals").insert(d).select("id").single();
+  if (error) throw error;
+  return (data as { id: string }).id;
 }
 
 /** VC ids this founder has ALREADY been introduced to (status intro_sent) — so we don't re-suggest. */

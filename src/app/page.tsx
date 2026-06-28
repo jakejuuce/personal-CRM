@@ -1,6 +1,7 @@
 // Match view (server component): load the founder list, hand off to the client explorer.
 import { loadFounders } from "@/lib/data";
 import { MatchExplorer } from "./match-explorer";
+import { Nav } from "./nav";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function Home() {
 
   return (
     <main>
+      <Nav />
       <h1 style={{ fontSize: 24, marginBottom: 4 }}>Who should I connect them with?</h1>
       <p style={{ color: "#666", marginTop: 0 }}>
         Pick a founder. The matcher finds VCs whose stage + vertical fit, honoring exclusions.

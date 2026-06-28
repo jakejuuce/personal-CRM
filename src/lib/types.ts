@@ -126,3 +126,27 @@ export interface VcForMatch {
   person: Person;
   intent: Intent | null;
 }
+
+/** A contact with everything attached — the row shape for the contacts directory. */
+export interface ContactFull {
+  person: Person;
+  intent: Intent | null;
+  relationship: Relationship | null;
+}
+
+export type DealKind = "referral" | "affiliate" | "other";
+
+export interface Deal {
+  id: string;
+  name: string;
+  kind: DealKind;
+  description: string | null;
+  website: string | null;
+  deck_text: string | null;
+  stages: CanonicalStage[];
+  verticals: CanonicalVertical[];
+  amount_low: number | null;
+  amount_high: number | null;
+  notes: string | null;
+  created_at: string;
+}
