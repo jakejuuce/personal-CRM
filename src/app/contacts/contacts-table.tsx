@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import type { MatchCandidate } from "@/lib/types";
+import { Suggestions } from "../suggestions";
 
 export interface ContactRow {
   id: string;
@@ -52,7 +54,7 @@ export function ContactsTable({ initial }: { initial: ContactRow[] }) {
         <a href="/api/export?format=json" style={btnLink}>JSON</a>
       </div>
 
-      {adding && <AddForm onAdded={(r) => { setRows((prev) => [r, ...prev]); setAdding(false); }} />}
+      {adding && <AddForm onAdded={(r) => setRows((prev) => [r, ...prev])} onClose={() => setAdding(false)} />}
 
       <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: 8, overflow: "hidden" }}>
         <thead>
@@ -117,7 +119,7 @@ function EditRow({ row, onSaved, onCancel }: { row: ContactRow; onSaved: (r: Con
   );
 }
 
-function AddForm({ onAdded }: { onAdded: (r: ContactRow) => void }) {
+function AddForm({ onAdded, onClose }: { onAdded: (r: ContactRow) => void; onClose: () => void }) {
   const [type, setType] = useState("founder");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
@@ -128,21 +130,27 @@ function AddForm({ onAdded }: { onAdded: (r: ContactRow) => void }) {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [added, setAdded] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<MatchCandidate[] | null>(null);
+  const [sugLoading, setSugLoading] = useState(false);
+
+  const list = (s: string) => s.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+
+  function reset() {
+    setName(""); setCompany(""); setLinks(""); setCaliber(""); setVerticals(""); setStages(""); setNotes("");
+    setAdded(null); setSuggestions(null); setErr(null);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setErr(null);
-    const list = (s: string) => s.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const hasIntent = !!(verticals || stages);
     const body: Record<string, unknown> = {
       type, name, company: company || null, links: links || null,
       caliber: caliber ? Number(caliber) : null, notes: notes || null,
     };
-    if (verticals || stages) {
-      body.intent = {
-        kind: type === "vc" ? "investing" : "raising",
-        verticals: list(verticals), stages: list(stages),
-      };
-    }
+    if (hasIntent) body.intent = { kind: type === "vc" ? "investing" : "raising", verticals: list(verticals), stages: list(stages) };
+
     const res = await fetch("/api/contacts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
     setBusy(false);
@@ -153,22 +161,58 @@ function AddForm({ onAdded }: { onAdded: (r: ContactRow) => void }) {
       stages: list(stages), verticals: list(verticals), exclusions: [], wildcard: false, thesis: null,
       tie_strength: null, last_touch: null,
     });
+    setAdded(name);
+
+    // Auto-suggest who to connect a new founder with.
+    if (type === "founder") {
+      if (!hasIntent) { setSuggestions([]); return; }
+      setSugLoading(true);
+      try {
+        const mr = await fetch(`/api/matches?founderId=${data.id}`);
+        const md = await mr.json();
+        const top = [...(md.matches ?? []), ...(md.nearMiss ?? [])].slice(0, 5);
+        setSuggestions(top);
+      } catch { setSuggestions([]); }
+      finally { setSugLoading(false); }
+    }
+  }
+
+  if (added) {
+    return (
+      <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+        <div style={{ fontWeight: 600 }}>Added {added}.</div>
+        {type === "founder" ? (
+          <Suggestions
+            title={`Who to connect ${added} with`}
+            loading={sugLoading}
+            candidates={suggestions}
+            emptyHint="Add a vertical or stage to this contact to get intro suggestions."
+          />
+        ) : (
+          <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>Suggestions run for founders who are raising.</p>
+        )}
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <button onClick={reset} className="btn btn-sm">+ Add another</button>
+          <button onClick={onClose} className="btn btn-sm">Done</button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, background: "#fff", padding: 14, borderRadius: 8, marginBottom: 12, border: "1px solid #e3e3e3" }}>
-      <select value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>
+    <form onSubmit={submit} className="card" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: 16, marginBottom: 12 }}>
+      <select value={type} onChange={(e) => setType(e.target.value)} className="input">
         <option value="founder">Founder</option><option value="vc">VC</option><option value="other">Other</option>
       </select>
-      <input required placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
-      <input placeholder="Company / firm" value={company} onChange={(e) => setCompany(e.target.value)} style={inputStyle} />
-      <input placeholder="LinkedIn URL" value={links} onChange={(e) => setLinks(e.target.value)} style={inputStyle} />
-      <input placeholder="Caliber 1-5" value={caliber} onChange={(e) => setCaliber(e.target.value)} style={inputStyle} />
-      <input placeholder="Verticals (comma)" value={verticals} onChange={(e) => setVerticals(e.target.value)} style={inputStyle} />
-      <input placeholder="Stages (comma)" value={stages} onChange={(e) => setStages(e.target.value)} style={inputStyle} />
-      <input placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ ...inputStyle, gridColumn: "span 2" }} />
-      <button type="submit" disabled={busy} style={{ ...btn, gridColumn: "span 3" }}>{busy ? "Adding…" : "Add contact"}</button>
-      {err && <p style={{ color: "#b00", gridColumn: "span 3" }}>{err}</p>}
+      <input required placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
+      <input placeholder="Company / firm" value={company} onChange={(e) => setCompany(e.target.value)} className="input" />
+      <input placeholder="LinkedIn URL" value={links} onChange={(e) => setLinks(e.target.value)} className="input" />
+      <input placeholder="Caliber 1-5" value={caliber} onChange={(e) => setCaliber(e.target.value)} className="input" />
+      <input placeholder="Verticals (comma)" value={verticals} onChange={(e) => setVerticals(e.target.value)} className="input" />
+      <input placeholder="Stages (comma)" value={stages} onChange={(e) => setStages(e.target.value)} className="input" />
+      <input placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} className="input" style={{ gridColumn: "span 2" }} />
+      <button type="submit" disabled={busy} className="btn btn-primary" style={{ gridColumn: "span 3", justifyContent: "center" }}>{busy ? "Adding…" : "Add contact"}</button>
+      {err && <p style={{ color: "var(--danger)", gridColumn: "span 3" }}>{err}</p>}
     </form>
   );
 }

@@ -123,6 +123,12 @@ a:hover { text-decoration: underline; }
   font-weight: 540; color: var(--muted); cursor: pointer; transition: color .12s; }
 .btn-quiet:hover { color: var(--accent-ink); }
 .btn-quiet:disabled { opacity: .55; cursor: default; }
+
+/* inline suggestions (shown right after adding a founder / deal) */
+.suggest { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.suggest-row { display: grid; grid-template-columns: 46px 1fr; gap: 14px; align-items: start; padding: 8px 0; }
+.suggest-row + .suggest-row { border-top: 1px solid var(--border); }
+.suggest-row .score-anchor { font-size: 24px; }
 .draft-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 10px; }
 .draft-box { white-space: pre-wrap; background: var(--surface-2); border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 4px 0 10px; line-height: 1.55; }
 .draft-box-go { background: var(--accent-soft); border-color: transparent; }

@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { MatchCandidate } from "@/lib/types";
+import { Suggestions } from "../suggestions";
 
 export interface DealRow {
   id: string;
@@ -18,15 +19,18 @@ const btn = { padding: "8px 14px", borderRadius: 6, cursor: "pointer", border: "
 export function DealsView({ initial }: { initial: DealRow[] }) {
   const [deals, setDeals] = useState(initial);
   const [adding, setAdding] = useState(initial.length === 0);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
 
   return (
     <div>
-      <button onClick={() => setAdding((v) => !v)} style={{ ...btn, margin: "12px 0" }}>
+      <button onClick={() => setAdding((v) => !v)} className="btn" style={{ margin: "12px 0" }}>
         {adding ? "Close" : "+ New deal"}
       </button>
-      {adding && <AddDeal onAdded={(d) => { setDeals((p) => [d, ...p]); setAdding(false); }} />}
-      {deals.length === 0 && !adding && <p style={{ color: "#666" }}>No deals yet.</p>}
-      {deals.map((d) => <DealCard key={d.id} deal={d} />)}
+      {adding && (
+        <AddDeal onAdded={(d) => { setDeals((p) => [d, ...p]); setJustAdded(d.id); setAdding(false); }} />
+      )}
+      {deals.length === 0 && !adding && <p className="muted">No deals yet.</p>}
+      {deals.map((d) => <DealCard key={d.id} deal={d} autoRun={d.id === justAdded} />)}
     </div>
   );
 }
@@ -71,11 +75,11 @@ function AddDeal({ onAdded }: { onAdded: (d: DealRow) => void }) {
   );
 }
 
-function DealCard({ deal }: { deal: DealRow }) {
+function DealCard({ deal, autoRun }: { deal: DealRow; autoRun?: boolean }) {
   const [fits, setFits] = useState<MatchCandidate[] | null>(null);
-  const [nearMiss, setNearMiss] = useState<MatchCandidate[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [ran, setRan] = useState(false);
 
   async function findFits() {
     setBusy(true); setErr(null);
@@ -83,44 +87,31 @@ function DealCard({ deal }: { deal: DealRow }) {
     const data = await res.json();
     setBusy(false);
     if (!res.ok) { setErr(data.error ?? "error"); return; }
-    setFits(data.fits ?? []);
-    setNearMiss(data.nearMiss ?? []);
+    // confident fits first, then near-misses — one ranked list
+    setFits([...(data.fits ?? []), ...(data.nearMiss ?? [])]);
+    setRan(true);
   }
 
+  // Auto-suggest fits the moment a deal is uploaded.
+  useEffect(() => { if (autoRun && !ran) findFits(); /* eslint-disable-next-line */ }, [autoRun]);
+
   return (
-    <div style={{ border: "1px solid #e3e3e3", borderRadius: 8, padding: 16, marginBottom: 12, background: "#fff" }}>
+    <div className="card" style={{ padding: 16, marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <strong>{deal.name}</strong>
-        <span style={{ fontSize: 12, color: "#888" }}>{deal.kind}</span>
+        <span className="chip">{deal.kind}</span>
       </div>
       {deal.website && <a href={deal.website} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>{deal.website}</a>}
-      <p style={{ fontSize: 13, color: "#555", margin: "6px 0" }}>
+      <p className="muted" style={{ fontSize: 13, margin: "6px 0" }}>
         {deal.verticals.length ? `verticals: ${deal.verticals.join(", ")}` : "no verticals extracted"}
         {deal.stages.length ? ` · stages: ${deal.stages.join(", ")}` : ""}
       </p>
-      <button onClick={findFits} disabled={busy} style={btn}>{busy ? "Finding fits…" : "Who's a fit?"}</button>
-      {err && <p style={{ color: "#b00" }}>{err}</p>}
-
-      {fits && (
-        <div style={{ marginTop: 10 }}>
-          {fits.length === 0 && nearMiss.length === 0 && <p style={{ color: "#666" }}>No VC fits found.</p>}
-          {fits.map((f) => (
-            <div key={f.vc_id} style={{ borderTop: "1px solid #f0f0f0", padding: "8px 0" }}>
-              <strong>{f.vc_name}</strong>{f.vc_firm ? ` · ${f.vc_firm}` : ""} <span style={{ color: "#888" }}>[{f.score}]</span>
-              <div style={{ fontSize: 13, color: "#444" }}>{f.why}</div>
-            </div>
-          ))}
-          {nearMiss.length > 0 && (
-            <details style={{ marginTop: 6 }}>
-              <summary style={{ color: "#888", fontSize: 13, cursor: "pointer" }}>{nearMiss.length} near-miss(es)</summary>
-              {nearMiss.map((f) => (
-                <div key={f.vc_id} style={{ fontSize: 13, color: "#666", padding: "4px 0" }}>
-                  {f.vc_name}{f.vc_firm ? ` · ${f.vc_firm}` : ""} [{f.score}] — {f.why}
-                </div>
-              ))}
-            </details>
-          )}
-        </div>
+      {!ran && (
+        <button onClick={findFits} disabled={busy} className="btn btn-sm">{busy ? "Finding fits…" : "Who's a fit?"}</button>
+      )}
+      {err && <p style={{ color: "var(--danger)" }}>{err}</p>}
+      {(busy || fits) && (
+        <Suggestions title="Who's a fit" loading={busy} candidates={fits} emptyHint="No VC fits found for this deal." />
       )}
     </div>
   );
